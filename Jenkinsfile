@@ -2,28 +2,37 @@ pipeline {
     agent any
 
     environment {
-        JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'  // ajusta si es diferente en tu Jenkins
+        JAVA_HOME = '/Library/Java/JavaVirtualMachines/amazon-corretto-17.jdk/Contents/Home'
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
     }
 
     tools {
-        maven 'Maven 3.8.6'  // asegúrate que Maven esté configurado con ese nombre en Jenkins
-        jdk 'Java 17'        // o el nombre que hayas definido en "Global Tool Configuration"
+        maven 'Maven3' // Asegúrate de que en Jenkins esté configurado un Maven con este nombre
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10')) // Guarda solo los últimos 10 builds
+        timestamps() // Agrega timestamps a la consola
+    }
+
+    triggers {
+        pollSCM('* * * * *') // (opcional) chequea cambios cada minuto
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/TU_USUARIO/TU_REPO.git'  // cambia por tu repo
+                checkout scm
             }
         }
 
-        stage('Instalar dependencias') {
+        stage('Build') {
             steps {
-                sh 'mvn clean install -DskipTests'
+                sh 'mvn clean install'
             }
         }
 
-        stage('Run Appium Tests') {
+        stage('Test') {
             steps {
                 sh 'mvn test'
             }
@@ -32,7 +41,13 @@ pipeline {
 
     post {
         always {
-            junit 'target/surefire-reports/*.xml'
+            junit '**/target/surefire-reports/*.xml'
+        }
+        failure {
+            echo '❌ Algo salió mal con los tests.'
+        }
+        success {
+            echo '✅ Todo funcionó correctamente.'
         }
     }
 }
